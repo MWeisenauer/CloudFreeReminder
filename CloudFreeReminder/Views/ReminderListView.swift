@@ -145,3 +145,15 @@ struct ReminderRowView: View {
         .padding(.vertical, 2)
     }
 }
+
+#Preview {
+    let store = ReminderStore()
+    store.reminders = [
+        Reminder(title: "Arzt Termin", body: "Dr. Müller anrufen", dueDate: Date().addingTimeInterval(3600)),
+        Reminder(title: "Einkauf", body: "Milch, Brot, Käse", isCompleted: true),
+        Reminder(title: "Rechnung bezahlen", dueDate: Date().addingTimeInterval(-86400))
+    ]
+    return ReminderListView()
+        .environmentObject(store)
+        .preferredColorScheme(.dark)
+}

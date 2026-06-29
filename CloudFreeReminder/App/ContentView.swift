@@ -10,5 +10,6 @@ struct ContentView: View {
             SettingsView()
                 .tabItem { Label("Einstellungen", systemImage: "gear") }
         }
+        .preferredColorScheme(.dark)
     }
 }
