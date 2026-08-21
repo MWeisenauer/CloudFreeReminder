@@ -6,12 +6,14 @@ struct SettingsView: View {
     @State private var testResult: String?
     @State private var testSuccess = false
     @State private var showSaveConfirmation = false
+    @State private var isPasswordVisible = false
+    @FocusState private var passwordFieldFocused: Bool
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("FTPS-Server") {
-                    TextField("Host (z.B. 192.168.1.1)", text: $settings.host)
+                Section {
+                    TextField("DynDNS-Adresse deiner Fritz!Box", text: $settings.host)
                         .textContentType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -27,14 +29,44 @@ struct SettingsView: View {
                         .onChange(of: settings.useImplicitTLS) { _, enabled in
                             settings.port = enabled ? 990 : 21
                         }
+                } header: {
+                    Text("FTPS-Server")
+                } footer: {
+                    Text("Für den Zugriff von unterwegs die DynDNS- bzw. MyFRITZ!-Adresse deiner Fritz!Box eintragen (z. B. meinbox.myfritz.net). Im Heimnetz genügt fritz.box.")
                 }
                 Section("Zugangsdaten") {
                     TextField("Benutzername", text: $settings.username)
                         .textContentType(.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    SecureField("Passwort", text: $settings.password)
+                    HStack {
+                        Group {
+                            if isPasswordVisible {
+                                TextField("Passwort", text: $settings.password)
+                            } else {
+                                SecureField("Passwort", text: $settings.password)
+                            }
+                        }
                         .textContentType(.password)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($passwordFieldFocused)
+
+                        Button {
+                            // Beim Umschalten wird das Feld neu aufgebaut – Fokus
+                            // danach zurückholen, sonst klappt die Tastatur zu.
+                            let wasFocused = passwordFieldFocused
+                            isPasswordVisible.toggle()
+                            if wasFocused {
+                                DispatchQueue.main.async { passwordFieldFocused = true }
+                            }
+                        } label: {
+                            Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(isPasswordVisible ? "Passwort verbergen" : "Passwort anzeigen")
+                    }
                 }
                 Section {
                     TextField("Pfad (z.B. /reminder/)", text: $settings.remotePath)
