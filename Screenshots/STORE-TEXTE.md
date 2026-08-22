@@ -15,10 +15,10 @@ Erinnerung,Wiedervorlage,Fritz!Box,FTPS,ohne Cloud,Datenschutz,Aufgaben,Termine,
 
 ## Beschreibung / Description
 CloudFreeReminder speichert deine Erinnerungen und Wiedervorlagen dort, wo sie
-hingehören: auf deinem eigenen Speicher zu Hause. Die App verbindet sich per
-verschlüsseltem FTPS direkt mit deiner Fritz!Box (oder einem anderen FTPS-Server)
-– komplett ohne fremde Cloud, ohne Benutzerkonto und ohne dass deine Daten je
-einen fremden Server erreichen.
+hingehören: auf deinem eigenen Speicher zu Hause. Die App verbindet sich per FTPS
+direkt mit deiner Fritz!Box (oder einem anderen FTPS-Server) – komplett ohne
+fremde Cloud, ohne Benutzerkonto und ohne dass deine Daten je einen fremden
+Server erreichen.
 
 So behältst du die volle Kontrolle: Deine Termine, Notizen und Aufgaben liegen
 ausschließlich auf deiner eigenen Hardware.
@@ -34,10 +34,12 @@ FUNKTIONEN
 
 DATENSCHUTZ AN ERSTER STELLE
 • Keine Cloud, kein Tracking, keine Werbung, kein Konto
-• Verbindung ausschließlich per verschlüsseltem FTPS (TLS)
+• Anmeldung per TLS verschlüsselt (FTPS mit AUTH TLS)
 • Das FTPS-Passwort wird sicher im iOS-Schlüsselbund (Keychain) abgelegt –
   niemals in einem Klartext-Speicher und nicht in iCloud-Backups
 • Unterstützt selbstsignierte Zertifikate für den privaten Heimgebrauch
+• Die Daten verlassen dein Netz nicht, sofern du den Server nur im Heimnetz
+  erreichbar machst
 
 EINRICHTUNG
 Trage in den Einstellungen die Zugangsdaten deiner Fritz!Box bzw. deines

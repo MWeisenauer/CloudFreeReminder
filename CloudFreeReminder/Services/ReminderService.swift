@@ -210,8 +210,23 @@ actor ReminderService {
 
         try await send("PBSZ 0\r\n", to: task)
         _ = try await readResponse(from: task)
-        // PROT C: unencrypted data channel. Fritz!Box built-in FTP (port 21) responds 200
-        // to PROT P but does not perform TLS on the data channel → handshake deadlock.
+        // PROT C: unverschluesselter Datenkanal.
+        //
+        // Das lag frueher angeblich an der Fritz!Box ("antwortet 200 auf PROT P,
+        // verschluesselt aber nicht"). Das ist widerlegt: Am 22.08.2026 gegen
+        // vsftpd auf einem Raspberry Pi nachgemessen – der Server handhabt einen
+        // TLS-Datenkanal einwandfrei, curl uebertraegt darueber fehlerfrei
+        // (PROT P -> 150 -> 226). Diese App bekommt den Handschlag auf dem
+        // Datenkanal dagegen mit keinem der beiden Wege zustande:
+        //
+        //   URLSessionStreamTask: startSecureConnection() stoesst den Handschlag
+        //     nur bei nachfolgendem Schreiben an. Uploads liefen, Downloads nicht.
+        //   NWConnection (Network.framework): TCP steht nachweislich, der
+        //     Handschlag kommt trotzdem nicht zustande. Ursache unbekannt.
+        //
+        // Solange das offen ist, bleibt der Datenkanal unverschluesselt. Nur die
+        // Anmeldung ist per TLS geschuetzt – das gilt fuer JEDEN Server, nicht
+        // nur fuer die Fritz!Box, und muss in den Store-Texten so stehen.
         try await send("PROT C\r\n", to: task)
         _ = try await readResponse(from: task)
 
