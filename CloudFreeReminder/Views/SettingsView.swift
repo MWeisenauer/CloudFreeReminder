@@ -1,13 +1,17 @@
 import SwiftUI
 
 struct SettingsView: View {
+    private enum Field: Hashable {
+        case host, port, username, password, remotePath
+    }
+
     @State private var settings = FTPSSettings.load()
     @State private var isTesting = false
     @State private var testResult: String?
     @State private var testSuccess = false
     @State private var showSaveConfirmation = false
     @State private var isPasswordVisible = false
-    @FocusState private var passwordFieldFocused: Bool
+    @FocusState private var focusedField: Field?
 
     var body: some View {
         NavigationStack {
@@ -17,13 +21,15 @@ struct SettingsView: View {
                         .textContentType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .focused($focusedField, equals: .host)
                     HStack {
                         Text("Port")
                         Spacer()
-                        TextField("Port", value: $settings.port, format: .number)
+                        TextField("Port", value: $settings.port, format: .number.grouping(.never))
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
                             .frame(width: 80)
+                            .focused($focusedField, equals: .port)
                     }
                     Toggle("Implizites TLS (ftps://, Port 990)", isOn: $settings.useImplicitTLS)
                         .onChange(of: settings.useImplicitTLS) { _, enabled in
@@ -39,6 +45,7 @@ struct SettingsView: View {
                         .textContentType(.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .focused($focusedField, equals: .username)
                     HStack {
                         Group {
                             if isPasswordVisible {
@@ -50,15 +57,15 @@ struct SettingsView: View {
                         .textContentType(.password)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .focused($passwordFieldFocused)
+                        .focused($focusedField, equals: .password)
 
                         Button {
                             // Beim Umschalten wird das Feld neu aufgebaut – Fokus
                             // danach zurückholen, sonst klappt die Tastatur zu.
-                            let wasFocused = passwordFieldFocused
+                            let wasFocused = focusedField == .password
                             isPasswordVisible.toggle()
                             if wasFocused {
-                                DispatchQueue.main.async { passwordFieldFocused = true }
+                                DispatchQueue.main.async { focusedField = .password }
                             }
                         } label: {
                             Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
@@ -72,6 +79,7 @@ struct SettingsView: View {
                     TextField("Pfad (z.B. /reminder/)", text: $settings.remotePath)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .focused($focusedField, equals: .remotePath)
                 } header: {
                     Text("Verzeichnis auf dem Server")
                 } footer: {
@@ -113,6 +121,17 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Einstellungen")
+            // Ohne diese Leiste liesse sich der Zahlenblock des Port-Feldes gar
+            // nicht schliessen – er hat keine Return-Taste. Die Tastatur wuerde
+            // dann dauerhaft die Tab-Leiste verdecken.
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Fertig") { focusedField = nil }
+                        .fontWeight(.semibold)
+                }
+            }
+            .scrollDismissesKeyboard(.interactively)
             .alert("Gespeichert", isPresented: $showSaveConfirmation) {
                 Button("OK") {}
             } message: {
