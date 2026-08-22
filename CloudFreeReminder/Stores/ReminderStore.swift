@@ -10,6 +10,7 @@ class ReminderStore: ObservableObject {
     func loadReminders() async {
         let settings = FTPSSettings.load()
         guard settings.isConfigured else {
+            reminders = []
             errorMessage = "Bitte zuerst die FTPS-Einstellungen konfigurieren."
             return
         }
@@ -17,10 +18,14 @@ class ReminderStore: ObservableObject {
         errorMessage = nil
         do {
             reminders = try await ReminderService(settings: settings).fetchAllReminders()
-            await NotificationManager.sync(reminders: reminders)
         } catch {
+            // Die Liste bildet immer den Server ab. Bliebe sie bei einem Fehler
+            // stehen, zeigte die App nach einem Serverwechsel weiterhin die
+            // Erinnerungen des vorherigen Ablageorts an.
+            reminders = []
             errorMessage = error.localizedDescription
         }
+        await NotificationManager.sync(reminders: reminders)
         isLoading = false
     }
 

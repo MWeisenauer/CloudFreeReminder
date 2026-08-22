@@ -62,7 +62,8 @@ final class FTPSDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
 
 // Uses explicit TLS (AUTH TLS) and passive mode (PASV).
 // Data channel encryption is auto-detected: starts with PROT C (unencrypted).
-// If the server responds 425, switches to PROT P (encrypted) and retries transparently.
+// If the server rejects that, switches to PROT P (encrypted) and retries
+// transparently. Servers signal this differently – see needsSecureDataChannel.
 actor ReminderService {
     private let settings: FTPSSettings
 
@@ -70,7 +71,7 @@ actor ReminderService {
     private var urlSession: URLSession?
     private var ftpDelegate: FTPSDelegate?
     private var readBuffer = Data()
-    private var encryptDataChannel = false  // auto-set on first 425 response
+    private var encryptDataChannel = false  // auto-set when the server demands it
 
     private let commandTimeout: TimeInterval = 30
     private let readTimeout: TimeInterval    = 30
@@ -88,10 +89,20 @@ actor ReminderService {
         defer { disconnect() }
         let filenames = try await listFiles()
         var reminders: [Reminder] = []
+        var failed: [String] = []
         for filename in filenames {
-            if let reminder = try? await fetchReminder(filename: filename) {
-                reminders.append(reminder)
+            do {
+                reminders.append(try await fetchReminder(filename: filename))
+            } catch {
+                failed.append(filename)
             }
+        }
+        // Frueher wurden fehlgeschlagene Downloads mit try? verschluckt. Eine
+        // unvollstaendige Liste sah dann aus wie eine vollstaendige – bei einer
+        // App fuer Termine die denkbar schlechteste Eigenschaft.
+        if !failed.isEmpty && reminders.isEmpty {
+            throw FTPSError.connectionFailed(
+                "\(failed.count) Erinnerung(en) konnten nicht geladen werden.")
         }
         return reminders.sorted { sortKey($0) < sortKey($1) }
     }
@@ -235,7 +246,7 @@ actor ReminderService {
         try await send("NLST\r\n", to: controlTask)
         var reply = try await readResponse(from: controlTask)
 
-        if reply.hasPrefix("425") {
+        if needsSecureDataChannel(reply) {
             dataTask.cancel()
             try await upgradeToProtP(controlTask: controlTask)
             dataTask = try await openDataChannel(controlTask: controlTask, session: urlSession)
@@ -253,7 +264,14 @@ actor ReminderService {
         }
 
         let data = try await readAll(from: dataTask)
-        _ = try? await readResponse(from: controlTask) // 226
+        // Der Abschlusscode wird ausgewertet, nicht verworfen. Bleibt er aus
+        // oder meldet er einen Fehler, kam die Uebertragung nicht zustande –
+        // ohne diese Pruefung waere das von einem leeren Verzeichnis nicht zu
+        // unterscheiden und die App zeigte stillschweigend "keine Eintraege".
+        let completion = try await readResponse(from: controlTask)
+        guard completion.hasPrefix("226") || completion.hasPrefix("250") else {
+            throw FTPSError.connectionFailed("Verzeichnisliste unvollständig: \(completion)")
+        }
 
         let listing = String(data: data, encoding: .utf8)
                    ?? String(data: data, encoding: .isoLatin1) ?? ""
@@ -272,7 +290,7 @@ actor ReminderService {
         try await send("RETR \(filename)\r\n", to: controlTask)
         var reply = try await readResponse(from: controlTask)
 
-        if reply.hasPrefix("425") {
+        if needsSecureDataChannel(reply) {
             dataTask.cancel()
             try await upgradeToProtP(controlTask: controlTask)
             dataTask = try await openDataChannel(controlTask: controlTask, session: urlSession)
@@ -304,7 +322,7 @@ actor ReminderService {
         try await send("STOR \(filename)\r\n", to: controlTask)
         var storResp = try await readResponse(from: controlTask)
 
-        if storResp.hasPrefix("425") {
+        if needsSecureDataChannel(storResp) {
             dataTask.cancel()
             try await upgradeToProtP(controlTask: controlTask)
             dataTask = try await openDataChannel(controlTask: controlTask, session: urlSession)
@@ -327,7 +345,17 @@ actor ReminderService {
         }
     }
 
-    // Switches to encrypted data channel (PROT P) after a 425 response.
+    // Does the reply mean "this server refuses an unencrypted data channel"?
+    //
+    //   425 – Fritz!Box: cannot open the data connection
+    //   522 – vsftpd mit force_local_data_ssl=YES: "Data connections must be
+    //         encrypted." Ohne diesen Fall schlaegt jede Uebertragung gegen den
+    //         Raspberry Pi fehl, obwohl die Anmeldung laengst funktioniert.
+    private func needsSecureDataChannel(_ reply: String) -> Bool {
+        reply.hasPrefix("425") || reply.hasPrefix("522")
+    }
+
+    // Switches to encrypted data channel (PROT P).
     // Subsequent openDataChannel calls will use startSecureConnection().
     private func upgradeToProtP(controlTask: URLSessionStreamTask) async throws {
         encryptDataChannel = true
