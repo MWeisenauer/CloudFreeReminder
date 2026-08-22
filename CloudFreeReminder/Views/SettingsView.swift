@@ -5,6 +5,8 @@ struct SettingsView: View {
         case host, port, username, password, remotePath
     }
 
+    @EnvironmentObject private var store: ReminderStore
+    @State private var location = FTPSSettings.activeLocation
     @State private var settings = FTPSSettings.load()
     @State private var isTesting = false
     @State private var testResult: String?
@@ -17,7 +19,23 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("DynDNS-Adresse deiner Fritz!Box", text: $settings.host)
+                    Picker("Ablageort", selection: $location) {
+                        ForEach(StorageLocation.allCases) { ort in
+                            Label(ort.title, systemImage: ort.symbol).tag(ort)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .onChange(of: location) { alt, neu in
+                        wechsleAblageort(von: alt, zu: neu)
+                    }
+                } header: {
+                    Text("Ablageort")
+                } footer: {
+                    Text("Jeder Ablageort hat eigene Zugangsdaten. Beim Umschalten werden die Erinnerungen vom gewählten Server neu geladen.")
+                }
+                Section {
+                    TextField(location.hostPlaceholder, text: $settings.host)
                         .textContentType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -38,7 +56,7 @@ struct SettingsView: View {
                 } header: {
                     Text("FTPS-Server")
                 } footer: {
-                    Text("Für den Zugriff von unterwegs die DynDNS- bzw. MyFRITZ!-Adresse deiner Fritz!Box eintragen (z. B. meinbox.myfritz.net). Im Heimnetz genügt fritz.box.")
+                    Text(location.hostHint)
                 }
                 Section("Zugangsdaten") {
                     TextField("Benutzername", text: $settings.username)
@@ -85,14 +103,18 @@ struct SettingsView: View {
                 } footer: {
                     Text("Eigener Ordner für Erinnerungen – getrennt von den FritzNotes-Notizen.")
                 }
-                Section("Verbindungsoptionen") {
-                    Toggle("Passiver Modus (PASV)", isOn: $settings.passiveMode)
+                Section {
                     Toggle("Selbstsignierten Zertifikaten vertrauen", isOn: $settings.trustSelfSignedCertificates)
+                } header: {
+                    Text("Verbindungsoptionen")
+                } footer: {
+                    Text("Der Datenkanal wird immer im passiven Modus (PASV) aufgebaut. Aktives FTP verlangt, dass der Server eine Verbindung zum iPhone aufbaut – das scheitert hinter jedem Router.")
                 }
                 Section {
                     Button("Einstellungen speichern") {
-                        settings.save()
+                        settings.save(for: location)
                         showSaveConfirmation = true
+                        Task { await store.loadReminders() }
                     }
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
@@ -140,8 +162,20 @@ struct SettingsView: View {
         }
     }
 
+    /// Speichert das bisherige Profil und laedt das neue in das Formular.
+    /// Die Liste wird anschliessend vom neuen Server geholt.
+    private func wechsleAblageort(von alt: StorageLocation, zu neu: StorageLocation) {
+        guard alt != neu else { return }
+        settings.save(for: alt)
+        FTPSSettings.activeLocation = neu
+        settings = FTPSSettings.load(neu)
+        testResult = nil
+        focusedField = nil
+        Task { await store.loadReminders() }
+    }
+
     private func testConnection() async {
-        settings.save()
+        settings.save(for: location)
         isTesting = true
         testResult = nil
         do {
