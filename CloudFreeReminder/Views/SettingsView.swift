@@ -114,6 +114,23 @@ struct SettingsView: View {
                     Text("Eigener Ordner für Erinnerungen – getrennt von den FritzNotes-Notizen.")
                 }
                 Section {
+                    NavigationLink {
+                        EncryptionSetupView()
+                    } label: {
+                        HStack {
+                            Label("Inhaltsverschlüsselung", systemImage: verschluesselungSymbol)
+                            Spacer()
+                            Text(verschluesselungZustand)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Verschlüsselung")
+                } footer: {
+                    Text("FTPS schützt die Leitung. Die Inhaltsverschlüsselung schützt zusätzlich die Dateien selbst – auf dem Server liegen sie dann unlesbar.")
+                }
+                Section {
                     Toggle("Selbstsignierten Zertifikaten vertrauen", isOn: $settings.trustSelfSignedCertificates)
                 } header: {
                     Text("Verbindungsoptionen")
@@ -170,6 +187,19 @@ struct SettingsView: View {
                 Text("Die FTPS-Einstellungen wurden gespeichert.")
             }
         }
+    }
+
+    // Kurzer Zustand fuer die Zeile in den Einstellungen. Bewusst drei Faelle
+    // statt an/aus: „Schluessel da, aber nicht freigeschaltet" ist ein eigener
+    // Zustand, den man sehen koennen muss.
+    private var verschluesselungZustand: String {
+        if EncryptionPolicy.mayEncrypt { return "Aktiv" }
+        if CryptoKeyStore.hasMasterKey { return "Eingerichtet" }
+        return "Aus"
+    }
+
+    private var verschluesselungSymbol: String {
+        EncryptionPolicy.mayEncrypt ? "lock.fill" : "lock.open"
     }
 
     /// Speichert das bisherige Profil und laedt das neue in das Formular.

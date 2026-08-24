@@ -81,12 +81,37 @@ nonisolated enum CryptoKeyStore {
         masterKey()?.withUnsafeBytes { Data($0).base64EncodedString() }
     }
 
+    // Derselbe Code in Vierergruppen, nur zur Anzeige.
+    //
+    // Ohne die Gruppen bricht SwiftUI die 44 Zeichen mittendrin um und setzt
+    // dabei einen Trennstrich, der nicht zum Code gehoert - wer abschreibt,
+    // schreibt ihn mit ab. Die Gruppen erzwingen saubere Umbruchstellen und
+    // machen das Abschreiben ausserdem ertraeglich. Kopiert und in den QR-Code
+    // geschrieben wird immer der ungruppierte Code.
+    static func grouped(_ code: String) -> String {
+        stride(from: 0, to: code.count, by: 4).map { i -> String in
+            let start = code.index(code.startIndex, offsetBy: i)
+            let end = code.index(start, offsetBy: min(4, code.count - i))
+            return String(code[start..<end])
+        }.joined(separator: " ")
+    }
+
+    // Nimmt Leerzeichen, Zeilenumbrueche und Trennstriche aus einer Eingabe.
+    //
+    // Der Code darf so eingegeben werden koennen, wie er dasteht: gruppiert,
+    // ueber zwei Zeilen, mit Leerzeichen aus der Zwischenablage. Der
+    // Trennstrich ist dabei ausdruecklich mitgemeint, weil ihn frueher die
+    // Anzeige selbst erzeugt hat.
+    static func normalize(_ input: String) -> String {
+        input.filter { !$0.isWhitespace && $0 != "-" && $0 != "\u{2010}" && $0 != "\u{2011}" }
+    }
+
     // Stellt den Hauptschluessel aus einem Sicherungscode wieder her.
     // Verweigert das Ueberschreiben eines vorhandenen Schluessels, ausser der
     // Code beschreibt genau denselben – so kann ein Fehlgriff beim Scannen
     // keinen Bestand vernichten.
     static func restore(fromBackupCode code: String) throws {
-        let cleaned = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleaned = normalize(code)
         guard let data = Data(base64Encoded: cleaned), data.count == 32 else {
             throw CryptoError.invalidBackupCode
         }
@@ -104,6 +129,6 @@ nonisolated enum CryptoKeyStore {
     // ein unscharfes Foto des QR-Codes erst im Ernstfall auf.
     static func backupCodeMatches(_ code: String) -> Bool {
         guard let expected = backupCode() else { return false }
-        return code.trimmingCharacters(in: .whitespacesAndNewlines) == expected
+        return normalize(code) == expected
     }
 }
