@@ -40,7 +40,9 @@ nonisolated enum ContentCrypto {
     private static let nonceBytes = 12
     private static let tagBytes   = 16
 
-    // Kleinstmoegliche verschluesselte Datei: Kennung, Nonce und Tag, kein Inhalt.
+    // Kleinstmoegliche verschluesselte Datei: Kennung, Nonce und Tag, kein
+    // Inhalt. Genau diese Groesse ist gueltig - sie ist die Verschluesselung
+    // einer leeren Datei, kein Bruchstueck.
     static var overhead: Int { magic.count + nonceBytes + tagBytes }
 
     // Traegt die Datei unsere Kennung? Einzige Unterscheidung zwischen alten
@@ -67,7 +69,7 @@ nonisolated enum ContentCrypto {
                      filename: String,
                      using key: SymmetricKey) throws -> Data {
         guard isEncrypted(data)   else { throw CryptoError.notEncrypted }
-        guard data.count > overhead else { throw CryptoError.truncated }
+        guard data.count >= overhead else { throw CryptoError.truncated }
 
         let combined = Data(data.dropFirst(magic.count))
         do {
