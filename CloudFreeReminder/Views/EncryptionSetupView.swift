@@ -217,6 +217,22 @@ struct EncryptionSetupView: View {
         } footer: {
             Text("Der Schlüssel liegt nur auf diesem Gerät und wandert in kein Backup – auch nicht in ein verschlüsseltes. Geht das Gerät verloren und fehlt der Code, kann niemand die Erinnerungen wiederherstellen. Auch ich nicht.")
         }
+
+        geschwisterHinweis
+        }
+    }
+
+    // Der Hinweis gehoert dorthin, wo der Code zu sehen ist - beim Sichern und
+    // im fertigen Zustand. Wer spaeter eine zweite CloudFree-App kauft, soll
+    // nicht raten muessen, ob er einen neuen Schluessel braucht.
+    @ViewBuilder
+    private var geschwisterHinweis: some View {
+        Section {
+            Label("Ein Code für alle CloudFree-Apps", systemImage: "square.stack.3d.up")
+        } header: {
+            Text("Die anderen CloudFree-Apps")
+        } footer: {
+            Text("Derselbe Sicherungscode gilt für alle CloudFree-Apps – Notizen, Passwörter, Adressen und die übrigen. Wähle dort „Ich habe schon einen Schlüssel“ und gib ihn ein; einen zweiten Code brauchst du nicht.\n\nJede App leitet daraus ihren eigenen Schlüssel ab: der Schlüssel der Erinnerungen öffnet nicht den Passworttresor. Freigeschaltet wird jede App einzeln.")
         }
     }
 
@@ -308,6 +324,8 @@ struct EncryptionSetupView: View {
             Text("Für ein zweites Gerät: dort „Ich habe schon einen Schlüssel“ wählen und diesen Code eingeben.")
         }
         .sheet(isPresented: $zeigeCodeErneut) { codeBlatt }
+
+        geschwisterHinweis
     }
 
     // MARK: - Blaetter
