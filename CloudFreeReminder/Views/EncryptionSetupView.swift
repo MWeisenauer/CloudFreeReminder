@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 // Der Weg zur Inhaltsverschluesselung, in vier Schritten:
@@ -19,6 +20,7 @@ struct EncryptionSetupView: View {
         case aktiv         // fertig eingerichtet
     }
 
+    @StateObject private var store = PurchaseManager()
     @State private var step: Step = .anfang
     @State private var backupCode = ""
     @State private var eingabe = ""
@@ -39,6 +41,8 @@ struct EncryptionSetupView: View {
         .navigationTitle("Inhaltsverschlüsselung")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: zustandBestimmen)
+        .task { await store.laden() }
+        .onChange(of: store.isPurchased) { _, _ in zustandBestimmen() }
     }
 
     // MARK: - Schritt 1: Anfang
@@ -67,6 +71,41 @@ struct EncryptionSetupView: View {
             Text("Die Dateinamen sind reine Kennnummern und verraten nichts über den Inhalt. Sichtbar bleibt aber, wie viele Erinnerungen es gibt und wann sie zuletzt geändert wurden.")
         }
 
+        if !store.isPurchased {
+            Section {
+                Button {
+                    Task { await store.kaufen() }
+                } label: {
+                    HStack {
+                        Spacer()
+                        if store.isWorking { ProgressView().padding(.trailing, 6) }
+                        Text(kaufBeschriftung)
+                        Spacer()
+                    }
+                }
+                .fontWeight(.semibold)
+                .disabled(store.product == nil || store.isWorking)
+
+                Button("Käufe wiederherstellen") {
+                    Task { await store.wiederherstellen() }
+                }
+                .frame(maxWidth: .infinity)
+                .disabled(store.isWorking)
+            } header: {
+                Text("Freischalten")
+            } footer: {
+                Text("Einmalig, kein Abonnement. Der Kauf gilt für diese App. „Käufe wiederherstellen“ holt ihn auf ein neues Gerät oder nach einer Neuinstallation zurück.")
+            }
+
+            if let meldung = store.fehler {
+                Section {
+                    Label(meldung, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.callout)
+                }
+            }
+        }
+
         Section {
             Button("Verschlüsselung einrichten") {
                 CryptoKeyStore.createMasterKeyIfNeeded()
@@ -75,15 +114,31 @@ struct EncryptionSetupView: View {
             }
             .fontWeight(.semibold)
             .frame(maxWidth: .infinity)
+            .disabled(!store.isPurchased)
 
+            // Bewusst NICHT hinter dem Kauf. Wer verschluesselte Dateien
+            // liegen hat und auf einem neuen Geraet steht, muss an seinen
+            // Schluessel kommen - sonst waeren seine Daten verloren, weil eine
+            // Zahlung nicht durchging. Entschluesseln kostet nichts.
             Button("Ich habe schon einen Schlüssel") {
                 wiederherstellen = true
             }
             .frame(maxWidth: .infinity)
         } footer: {
-            Text("Der zweite Weg ist der richtige, wenn du die Verschlüsselung auf einem anderen Gerät schon eingerichtet hast. Beide Geräte brauchen denselben Schlüssel, sonst liest das eine nicht, was das andere geschrieben hat.")
+            Text(store.isPurchased
+                 ? "Der zweite Weg ist der richtige, wenn du die Verschlüsselung auf einem anderen Gerät schon eingerichtet hast. Beide Geräte brauchen denselben Schlüssel, sonst liest das eine nicht, was das andere geschrieben hat."
+                 : "Hast du auf einem anderen Gerät schon verschlüsselt, übernimm dort den Schlüssel – das geht auch ohne Kauf. Lesen kostet nichts, nur das Verschlüsseln neuer Erinnerungen ist die Freischaltung.")
         }
         .sheet(isPresented: $wiederherstellen) { wiederherstellenBlatt }
+    }
+
+    // Der Preis kommt immer aus dem Store, nie aus dem Code - er haengt an
+    // Waehrung und Region des Kunden.
+    private var kaufBeschriftung: String {
+        if let preis = store.product?.displayPrice {
+            return "Für \(preis) freischalten"
+        }
+        return "Freischalten"
     }
 
     private func punkt(_ text: String, geschuetzt: Bool) -> some View {
@@ -221,10 +276,18 @@ struct EncryptionSetupView: View {
             if EncryptionPolicy.mayEncrypt {
                 Label("Neue Erinnerungen werden verschlüsselt", systemImage: "lock.fill")
                     .foregroundStyle(.green)
-            } else if !EncryptionPolicy.isPurchased {
+            } else if !store.isPurchased {
                 Label("Schlüssel eingerichtet, Feature nicht freigeschaltet",
                       systemImage: "lock.open.fill")
                     .foregroundStyle(.orange)
+                Button(kaufBeschriftung) {
+                    Task { await store.kaufen() }
+                }
+                .disabled(store.product == nil || store.isWorking)
+                Button("Käufe wiederherstellen") {
+                    Task { await store.wiederherstellen() }
+                }
+                .disabled(store.isWorking)
             }
         } header: {
             Text("Zustand")

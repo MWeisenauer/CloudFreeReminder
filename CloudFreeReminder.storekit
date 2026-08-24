@@ -1,0 +1,31 @@
+{
+  "identifier" : "8A2F1C90-4B77-4E0E-9E11-7C3D5A0B6E42",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "3.99",
+      "familyShareable" : false,
+      "internalID" : "C1D4E7A2-9B3F-4A61-8D25-6E0F1B3C7A94",
+      "localizations" : [
+        {
+          "description" : "Verschlüsselt die Erinnerungen auf dem Gerät, bevor sie hochgeladen werden. Auf dem Server liegen sie unlesbar.",
+          "displayName" : "Inhaltsverschlüsselung",
+          "locale" : "de_DE"
+        }
+      ],
+      "productID" : "de.TimeTec.CloudFreeReminder.contentencryption",
+      "referenceName" : "Inhaltsverschluesselung",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "CloudFreeReminder",
+    "_developerTeamID" : "2RA4PJBVUC",
+    "_lastSynchronizedDate" : 0
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
