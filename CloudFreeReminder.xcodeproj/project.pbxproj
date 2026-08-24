@@ -10,9 +10,22 @@
 		28C933DA2FE5698F00405275 /* CloudFreeReminder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CloudFreeReminder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		28C933F02FE5699000405275 /* Exceptions for "CloudFreeReminder" folder in "CloudFreeReminder" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				CloudFreeReminder.storekit,
+			);
+			target = 28C933D92FE5698E00405275 /* CloudFreeReminder */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		28C933DC2FE5698F00405275 /* CloudFreeReminder */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				28C933F02FE5699000405275 /* Exceptions for "CloudFreeReminder" folder in "CloudFreeReminder" target */,
+			);
 			path = CloudFreeReminder;
 			sourceTree = "<group>";
 		};
