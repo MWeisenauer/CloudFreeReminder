@@ -113,12 +113,23 @@ actor ReminderService {
 
     func uploadReminder(_ reminder: Reminder) async throws {
         guard settings.isConfigured else { throw FTPSError.notConfigured }
-        guard let data = encode(reminder).data(using: .utf8) else {
+        guard let plaintext = encode(reminder).data(using: .utf8) else {
             throw FTPSError.uploadFailed("Erinnerung konnte nicht kodiert werden.")
         }
+        let data = try prepareForUpload(plaintext, filename: reminder.remoteFilename)
         try await connect()
         defer { disconnect() }
         try await storeFile(filename: reminder.remoteFilename, data: data)
+    }
+
+    // Verschluesselt, sofern gekauft, gesichert und ein Schluessel da ist.
+    // Sonst geht der Inhalt wie bisher im Klartext hinaus. Die Umstellung
+    // braucht deshalb keinen Stichtag: der Bestand wandert hinueber, sobald
+    // eine Erinnerung geschrieben wird.
+    private func prepareForUpload(_ plaintext: Data, filename: String) throws -> Data {
+        guard EncryptionPolicy.mayEncrypt else { return plaintext }
+        let key = try CryptoKeyStore.appKey()
+        return try ContentCrypto.seal(plaintext, filename: filename, using: key)
     }
 
     func deleteReminder(filename: String) async throws {
@@ -145,6 +156,18 @@ actor ReminderService {
     private func sortKey(_ r: Reminder) -> Date {
         if r.isCompleted { return Date.distantFuture }
         return r.dueDate ?? Date.distantFuture
+    }
+
+    // Die Kennung "CFE1" entscheidet, nicht eine Einstellung: alte
+    // Klartextdateien und neue verschluesselte liegen nebeneinander und werden
+    // beide gelesen.
+    //
+    // Hier wird bewusst NICHT nach der Kaufberechtigung gefragt. Entschluesseln
+    // muss immer moeglich sein – siehe EncryptionPolicy.
+    private func decryptIfNeeded(_ raw: Data, filename: String) throws -> Data {
+        guard ContentCrypto.isEncrypted(raw) else { return raw }
+        let key = try CryptoKeyStore.appKey()
+        return try ContentCrypto.open(raw, filename: filename, using: key)
     }
 
     // MARK: - Reminder encoding / decoding
@@ -315,10 +338,11 @@ actor ReminderService {
         }
 
         try await dataChannel.awaitReady()
-        let data = try await dataChannel.readAll()
+        let raw = try await dataChannel.readAll()
         dataChannel.cancel()
         _ = try? await readResponse(from: controlTask) // 226
 
+        let data = try decryptIfNeeded(raw, filename: filename)
         guard let content = String(data: data, encoding: .utf8)
                           ?? String(data: data, encoding: .isoLatin1) else {
             throw FTPSError.downloadFailed
