@@ -66,7 +66,6 @@ nonisolated struct FTPSSettings: Codable, Sendable {
     var username: String = ""
     var password: String = ""
     var remotePath: String = "/reminder/"
-    var useImplicitTLS: Bool = false
     // Wird nicht mehr ausgewertet: der Datenkanal laeuft immer ueber PASV, ein
     // aktiver Modus ist gar nicht implementiert. Das Feld bleibt nur erhalten,
     // damit bereits gespeicherte Profile weiterhin dekodiert werden koennen.

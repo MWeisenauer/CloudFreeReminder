@@ -49,20 +49,6 @@ struct SettingsView: View {
                             .frame(width: 80)
                             .focused($focusedField, equals: .port)
                     }
-                    Toggle("Implizites TLS (ftps://, Port 990)", isOn: $settings.useImplicitTLS)
-                        .onChange(of: settings.useImplicitTLS) { _, enabled in
-                            // Nur zwischen den beiden Standardports umschalten.
-                            //
-                            // Ein selbst vergebener Port (etwa eine Portfreigabe
-                            // am Router) bleibt unangetastet. Ohne diese Bedingung
-                            // ging er auf zwei Wegen verloren: beim Umlegen des
-                            // Schalters – und vor allem beim Wechsel des
-                            // Ablageorts, weil onChange nicht unterscheidet, ob
-                            // der Nutzer den Schalter bewegt hat oder ob gerade
-                            // ein anderes Profil geladen wurde.
-                            guard settings.port == 21 || settings.port == 990 else { return }
-                            settings.port = enabled ? 990 : 21
-                        }
                 } header: {
                     Text("FTPS-Server")
                 } footer: {
