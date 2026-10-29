@@ -367,9 +367,14 @@ actor ReminderService {
         try await dataChannel.awaitReady()
         try await dataChannel.write(data)
         dataChannel.closeWrite()
+        // Den Datenkanal VOR dem Warten auf 226 vollstaendig schliessen. Die
+        // FRITZ!Box 7690 bestaetigt den Upload erst, wenn die TLS-Sitzung beendet
+        // ist (close_notify + FIN); das halbe Schliessen allein laesst beide
+        // Seiten warten, bis der Steuerkanal in die Zeitueberschreitung laeuft.
+        // cancel() schliesst geordnet: bereits Geschriebenes geht noch raus.
+        dataChannel.cancel()
 
         let completeResp = (try? await readResponse(from: controlTask)) ?? "226 implicit"
-        dataChannel.cancel()
         if !completeResp.hasPrefix("226") && !completeResp.hasPrefix("250")
             && !completeResp.hasPrefix("4") && !completeResp.hasPrefix("5") {
             throw FTPSError.uploadFailed("Keine Transfer-Bestätigung: \(completeResp)")
